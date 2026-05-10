@@ -1,0 +1,3 @@
+# Exclude large PDF files from Railway build snapshot
+# These files are served via GitHub raw URLs through the /api/forms endpoint
+public/forms/
