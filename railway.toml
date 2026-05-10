@@ -9,3 +9,9 @@ healthcheckPath = "/"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+[nixpacks]
+nixpacksVersion = "1"
+
+[nixpacks.variables]
+NODE_VERSION = "20"
