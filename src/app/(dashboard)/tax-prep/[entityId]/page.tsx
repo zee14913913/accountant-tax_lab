@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
@@ -470,7 +470,8 @@ function ReliefItemsTable({ items, onConfirm }: { items: TaxReliefItem[]; onConf
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function TaxPrepWorkbenchPage({ params }: { params: { entityId: string } }) {
+export default function TaxPrepWorkbenchPage() {
+  const params = useParams<{ entityId: string }>()
   const router = useRouter()
 
   const [assessmentYear, setAssessmentYear] = useState(new Date().getFullYear())

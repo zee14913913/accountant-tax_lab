@@ -9,9 +9,10 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { ArrowLeft } from 'lucide-react'
 import { TransactionClassifyPanel } from '@/components/transactions/TransactionClassifyPanel'
 
-export default async function TransactionDetailPage({ params }: { params: { id: string } }) {
+export default async function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: txnId } = await params
   const txn = await prisma.transaction.findFirst({
-    where: { id: params.id, archived_at: null },
+    where: { id: txnId, archived_at: null },
     include: {
       entity:              { select: { id: true, entity_name: true, flow_type: true, client: { select: { legal_name: true } } } },
       bank_account:        { select: { bank_name: true, account_name: true, account_no: true } },

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { formatDate } from '@/lib/utils'
@@ -142,7 +143,8 @@ function ItemCard({ item }: { item: AuditorPackageItem }) {
 // ---------------------------------------------------------------------------
 // Main Page
 // ---------------------------------------------------------------------------
-export default function AuditorPackDetailPage({ params }: { params: { id: string } }) {
+export default function AuditorPackDetailPage() {
+  const params = useParams<{ id: string }>()
   const [pack, setPack]             = useState<AuditorPackage | null>(null)
   const [issues, setIssues]         = useState<Issue[]>([])
   const [loading, setLoading]       = useState(true)

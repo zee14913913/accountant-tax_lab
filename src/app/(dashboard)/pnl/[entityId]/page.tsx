@@ -32,11 +32,13 @@ interface ApportionmentEntry {
 }
 
 export default async function PnlPage({ params, searchParams }: {
-  params: { entityId: string }
-  searchParams: { snapshot_id?: string }
+  params: Promise<{ entityId: string }>
+  searchParams: Promise<{ snapshot_id?: string }>
 }) {
+  const { entityId } = await params
+  const { snapshot_id } = await searchParams
   const entity = await prisma.entity.findFirst({
-    where: { id: params.entityId, archived_at: null },
+    where: { id: entityId, archived_at: null },
     include: { client: { select: { legal_name: true } } },
   })
 
@@ -52,8 +54,8 @@ export default async function PnlPage({ params, searchParams }: {
   }
 
   // Get latest snapshot, or specific one
-  const snapshot = searchParams.snapshot_id
-    ? await prisma.pnlSnapshot.findFirst({ where: { id: searchParams.snapshot_id, entity_id: entity.id } })
+  const snapshot = snapshot_id
+    ? await prisma.pnlSnapshot.findFirst({ where: { id: snapshot_id, entity_id: entity.id } })
     : await prisma.pnlSnapshot.findFirst({
         where:   { entity_id: entity.id },
         orderBy: { generated_at: 'desc' },

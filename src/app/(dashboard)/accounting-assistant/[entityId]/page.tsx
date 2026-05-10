@@ -30,9 +30,10 @@ function ChecklistRow({ item }: { item: { key: string; label: string; required: 
   )
 }
 
-export default async function EntityWorkbenchPage({ params }: { params: { entityId: string } }) {
+export default async function EntityWorkbenchPage({ params }: { params: Promise<{ entityId: string }> }) {
+  const { entityId } = await params
   const entity = await prisma.entity.findFirst({
-    where: { id: params.entityId, archived_at: null },
+    where: { id: entityId, archived_at: null },
     include: {
       client:          { select: { id: true, legal_name: true, client_code: true } },
       filing_profiles: { where: { is_active: true }, orderBy: { due_month: 'asc' } },

@@ -25,9 +25,10 @@ function riskVariant(flag: string | null): 'error' | 'warning' | 'neutral' | und
   return 'neutral'
 }
 
-export default async function ImportDetailPage({ params }: { params: { id: string } }) {
+export default async function ImportDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: importId } = await params
   const batch = await prisma.importBatch.findFirst({
-    where: { id: params.id, archived_at: null },
+    where: { id: importId, archived_at: null },
     include: {
       entity:       { select: { id: true, entity_name: true, flow_type: true, client: { select: { legal_name: true } } } },
       bank_account: { select: { id: true, bank_name: true, account_name: true, account_no: true, currency: true } },
