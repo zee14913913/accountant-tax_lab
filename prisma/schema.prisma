@@ -1,0 +1,876 @@
+// Accountant Work Replacement System — Prisma Schema v2.0
+// Phase 1: Foundation Layer
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
+  VIEWER
+}
+
+enum FlowType {
+  INDIVIDUAL_ONLY
+  INDIVIDUAL_BUSINESS
+  PARTNERSHIP
+  COMPANY
+}
+
+enum ClientType {
+  INDIVIDUAL
+  BUSINESS_OWNER
+  PARTNER
+  DIRECTOR
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum EntityType {
+  INDIVIDUAL_TAX
+  SOLE_PROPRIETORSHIP
+  ENTERPRISE
+  PARTNERSHIP
+  SDN_BHD
+  BHD
+  LLP
+  FREELANCE
+}
+
+enum EInvoicePhase {
+  PHASE_1
+  PHASE_2
+  PHASE_3
+  NOT_YET
+  VOLUNTARY
+  EXEMPT
+}
+
+enum ReportingFramework {
+  MFRS_FULL
+  MFRS_SME
+  CASH_BASIS
+  NONE
+}
+
+enum FilingCategory {
+  INCOME_TAX
+  SST_SALES_TAX
+  SST_SERVICE_TAX
+  E_INVOICE
+  AUDIT
+  ANNUAL_RETURN
+  PAYROLL_PCB
+  OTHER
+}
+
+enum BankAccountType {
+  CURRENT
+  SAVINGS
+  FIXED_DEPOSIT
+  CREDIT_CARD
+  E_WALLET
+  OTHER
+}
+
+enum ReportGroup {
+  REVENUE
+  COST_OF_SALES
+  OPERATING_EXPENSE
+  OTHER_INCOME
+  FINANCE_COST
+  TAX_EXPENSE
+  BALANCE_SHEET_ASSET
+  BALANCE_SHEET_LIABILITY
+  BALANCE_SHEET_EQUITY
+}
+
+enum TaxDeductibleType {
+  FULLY_DEDUCTIBLE
+  PARTIALLY_DEDUCTIBLE
+  NON_DEDUCTIBLE
+  CAPITAL_ALLOWANCE
+  PERSONAL_RELIEF
+  NOT_APPLICABLE
+}
+
+enum PartnerEntryType {
+  CAPITAL_CONTRIBUTION
+  CAPITAL_WITHDRAWAL
+  DRAWING
+  PROFIT_ALLOCATION
+  LOSS_ALLOCATION
+  ADJUSTMENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  ARCHIVE
+  RESTORE
+  EXPORT
+  IMPORT
+  REVIEW_APPROVE
+  REVIEW_FLAG
+  CLOSE
+  REOPEN
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model User {
+  id         String     @id @default(cuid())
+  email      String     @unique
+  name       String?
+  role       UserRole   @default(STAFF)
+  is_active  Boolean    @default(true)
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+
+  clients    Client[]   @relation("AssignedOwner")
+  audit_logs AuditLog[]
+}
+
+model Client {
+  id                String         @id @default(cuid())
+  client_code       String         @unique
+  client_type       ClientType
+  legal_name        String
+  display_name      String?
+  registration_no   String?
+  identification_no String?
+  tax_no            String?
+  phone             String?
+  email             String?
+  primary_flow_type FlowType
+  status            ClientStatus   @default(ACTIVE)
+  assigned_owner_id String?
+  archived_at       DateTime?
+  archived_by       String?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+
+  assigned_owner    User?          @relation("AssignedOwner", fields: [assigned_owner_id], references: [id])
+  entities          Entity[]
+  counterparties    Counterparty[]
+}
+
+model Entity {
+  id                   String              @id @default(cuid())
+  client_id            String
+  entity_name          String
+  entity_type          EntityType
+  flow_type            FlowType
+  registration_no      String?
+  tax_reference_no     String?
+  sst_no               String?
+  e_invoice_phase      EInvoicePhase?
+  e_invoice_mandatory  Boolean             @default(false)
+  financial_year_end   String
+  reporting_framework  ReportingFramework  @default(MFRS_SME)
+  base_currency        String              @default("MYR")
+  is_active            Boolean             @default(true)
+  archived_at          DateTime?
+  archived_by          String?
+  created_at           DateTime            @default(now())
+  updated_at           DateTime            @updatedAt
+
+  client               Client              @relation(fields: [client_id], references: [id])
+  filing_profiles      FilingProfile[]
+  bank_accounts        BankAccount[]
+  partners             Partner[]
+  import_batches       ImportBatch[]
+  transactions         Transaction[]
+  supporting_documents SupportingDocument[]
+  unresolved_issues    UnresolvedIssue[]
+  fixed_assets         FixedAsset[]
+  tax_relief_items     TaxReliefItem[]
+  monthly_closes       MonthlyClose[]
+  pnl_snapshots        PnlSnapshot[]
+  tax_adjustments      TaxAdjustment[]
+  auditor_packages     AuditorPackage[]
+}
+
+model FilingProfile {
+  id                     String          @id @default(cuid())
+  entity_id              String
+  filing_category        FilingCategory
+  filing_type            String
+  relevant_form          String?
+  filing_channel         String?
+  assessment_year        Int?
+  due_month              String?
+  due_notes              String?
+  official_reference_url String?
+  is_active              Boolean         @default(true)
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+
+  entity                 Entity          @relation(fields: [entity_id], references: [id])
+}
+
+model Partner {
+  id                      String               @id @default(cuid())
+  entity_id               String
+  partner_name            String
+  identification_no       String?
+  tax_no                  String?
+  profit_share_percentage Decimal              @db.Decimal(5, 2)
+  capital_contribution    Decimal?             @db.Decimal(15, 2)
+  join_date               DateTime?
+  exit_date               DateTime?
+  is_active               Boolean              @default(true)
+  notes                   String?
+  created_at              DateTime             @default(now())
+  updated_at              DateTime             @updatedAt
+
+  entity                  Entity               @relation(fields: [entity_id], references: [id])
+  ledger_entries          PartnerLedgerEntry[]
+}
+
+model PartnerLedgerEntry {
+  id          String           @id @default(cuid())
+  partner_id  String
+  entity_id   String
+  entry_date  DateTime
+  entry_type  PartnerEntryType
+  amount      Decimal          @db.Decimal(15, 2)
+  description String?
+  period      String?
+  created_by  String
+  created_at  DateTime         @default(now())
+
+  partner     Partner          @relation(fields: [partner_id], references: [id])
+}
+
+model BankAccount {
+  id              String          @id @default(cuid())
+  entity_id       String
+  bank_name       String
+  account_name    String
+  account_no      String
+  currency        String          @default("MYR")
+  account_type    BankAccountType
+  opening_balance Decimal?        @db.Decimal(15, 2)
+  opening_date    DateTime?
+  current_status  String?
+  is_active       Boolean         @default(true)
+  archived_at     DateTime?
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+
+  entity          Entity          @relation(fields: [entity_id], references: [id])
+  import_batches  ImportBatch[]
+  transactions    Transaction[]
+}
+
+model AccountingCategory {
+  id           String               @id @default(cuid())
+  code         String               @unique
+  name         String
+  name_zh      String?
+  report_group ReportGroup
+  parent_id    String?
+  sort_order   Int                  @default(0)
+  is_system    Boolean              @default(false)
+  is_active    Boolean              @default(true)
+
+  parent       AccountingCategory?  @relation("CategoryParent", fields: [parent_id], references: [id])
+  children     AccountingCategory[] @relation("CategoryParent")
+  transactions Transaction[]
+}
+
+model TaxCategory {
+  id                      String            @id @default(cuid())
+  code                    String            @unique
+  name                    String
+  name_zh                 String?
+  deductible_type         TaxDeductibleType
+  applicable_forms        String[]
+  lhdn_note               String?
+  default_adjustment_rule String?
+  is_system               Boolean           @default(false)
+  is_active               Boolean           @default(true)
+
+  transactions            Transaction[]
+}
+
+model ChecklistTemplate {
+  id         String   @id @default(cuid())
+  flow_type  FlowType
+  phase      String
+  version    String   @default("1.0")
+  is_active  Boolean  @default(true)
+  items_json Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Counterparty {
+  id              String           @id @default(cuid())
+  client_id       String
+  type            CounterpartyType
+  name            String
+  registration_no String?
+  tax_no          String?
+  contact_json    Json?
+  notes           String?
+  is_active       Boolean          @default(true)
+  created_at      DateTime         @default(now())
+
+  client          Client           @relation(fields: [client_id], references: [id])
+  transactions    Transaction[]
+}
+
+enum CounterpartyType {
+  CUSTOMER
+  SUPPLIER
+  BANK
+  GOVERNMENT
+  DIRECTOR
+  SHAREHOLDER
+  EMPLOYEE
+  RELATED_PARTY
+  OTHER
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  table_name  String
+  record_id   String
+  action      AuditAction
+  before_json Json?
+  after_json  Json?
+  actor_id    String
+  ip_address  String?
+  created_at  DateTime    @default(now())
+
+  actor       User        @relation(fields: [actor_id], references: [id])
+}
+
+// ============================================================
+// PHASE 2: IMPORT LAYER
+// ============================================================
+
+enum ImportSourceType {
+  PDF_STATEMENT
+  CSV_EXPORT
+  EXCEL_EXPORT
+  MANUAL_ENTRY
+  API_SYNC
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  PARTIAL
+  FAILED
+  ARCHIVED
+}
+
+enum TxnDirection {
+  CREDIT
+  DEBIT
+}
+
+enum ReviewStatus {
+  UNREVIEWED
+  IN_REVIEW
+  REVIEWED
+  FLAGGED
+  APPROVED
+}
+
+enum DocumentStatus {
+  NOT_REQUIRED
+  REQUIRED_MISSING
+  UPLOADED
+  VERIFIED
+}
+
+enum ReconciliationStatus {
+  UNMATCHED
+  MATCHED
+  PARTIAL
+  EXCEPTION
+}
+
+enum RiskFlag {
+  ROUND_NUMBER
+  HIGH_VALUE
+  RELATED_PARTY
+  UNUSUAL_COUNTERPARTY
+  DUPLICATE_SUSPECT
+  MISSING_DOCS
+  TAX_SENSITIVE
+  DIRECTOR_RELATED
+}
+
+model ImportBatch {
+  id                         String          @id @default(cuid())
+  entity_id                  String
+  bank_account_id            String
+  source_file_name           String
+  source_file_url            String
+  source_type                ImportSourceType
+  statement_month            String
+  parser_name                String?
+  parser_version             String?
+  source_transaction_count   Int?
+  imported_transaction_count Int?
+  unparsed_count             Int?
+  import_status              ImportStatus    @default(PENDING)
+  parse_errors_json          Json?
+  imported_by                String
+  imported_at                DateTime        @default(now())
+  notes                      String?
+  archived_at                DateTime?
+
+  entity                     Entity          @relation(fields: [entity_id], references: [id])
+  bank_account               BankAccount     @relation(fields: [bank_account_id], references: [id])
+  transactions               Transaction[]
+}
+
+model Transaction {
+  id                     String               @id @default(cuid())
+  entity_id              String
+  bank_account_id        String
+  import_batch_id        String?
+  txn_date               DateTime
+  posting_date           DateTime?
+  description            String
+  raw_text               String?
+  reference_no           String?
+  direction              TxnDirection
+  amount                 Decimal              @db.Decimal(15, 2)
+  balance_after          Decimal?             @db.Decimal(15, 2)
+  source_hash            String?
+  accounting_category_id String?
+  tax_category_id        String?
+  counterparty_id        String?
+  review_status          ReviewStatus         @default(UNREVIEWED)
+  document_status        DocumentStatus       @default(NOT_REQUIRED)
+  reconciliation_status  ReconciliationStatus @default(UNMATCHED)
+  risk_flag              RiskFlag?
+  is_manual              Boolean              @default(false)
+  management_note        String?
+  archived_at            DateTime?
+  archived_by            String?
+  created_at             DateTime             @default(now())
+  updated_at             DateTime             @updatedAt
+
+  entity                 Entity               @relation(fields: [entity_id], references: [id])
+  bank_account           BankAccount          @relation(fields: [bank_account_id], references: [id])
+  import_batch           ImportBatch?         @relation(fields: [import_batch_id], references: [id])
+  accounting_category    AccountingCategory?  @relation(fields: [accounting_category_id], references: [id])
+  tax_category           TaxCategory?         @relation(fields: [tax_category_id], references: [id])
+  counterparty           Counterparty?        @relation(fields: [counterparty_id], references: [id])
+  supporting_documents   SupportingDocument[]
+}
+
+// ============================================================
+// PHASE 4: DOCUMENT LAYER
+// ============================================================
+
+enum DocumentScope {
+  TRANSACTION_LEVEL
+  ENTITY_LEVEL
+  PERIOD_LEVEL
+}
+
+enum DocumentType {
+  INVOICE_ISSUED
+  INVOICE_RECEIVED
+  RECEIPT
+  BANK_STATEMENT
+  CONTRACT
+  PAYROLL_RECORD
+  SSM_CERTIFICATE
+  TAX_CLEARANCE
+  AUDIT_REPORT
+  FIXED_ASSET_PURCHASE
+  RELIEF_DOCUMENT
+  EA_FORM
+  DIVIDEND_VOUCHER
+  PROFIT_SHARING_AGREEMENT
+  DIRECTOR_RESOLUTION
+  OTHER
+}
+
+enum OcrStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  NOT_APPLICABLE
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+  QUERIED
+}
+
+model SupportingDocument {
+  id                  String             @id @default(cuid())
+  entity_id           String
+  transaction_id      String?
+  document_scope      DocumentScope
+  document_type       DocumentType
+  file_name           String
+  file_url            String
+  file_size_bytes     Int?
+  ocr_status          OcrStatus          @default(PENDING)
+  ocr_text            String?
+  extracted_json      Json?
+  verification_status VerificationStatus @default(UNVERIFIED)
+  period              String?
+  uploaded_by         String
+  uploaded_at         DateTime           @default(now())
+  archived_at         DateTime?
+
+  entity              Entity             @relation(fields: [entity_id], references: [id])
+  transaction         Transaction?       @relation(fields: [transaction_id], references: [id])
+}
+
+// ============================================================
+// PHASE 5: WORKBENCH LAYER
+// ============================================================
+
+enum IssueType {
+  MISSING_DOCUMENT
+  UNCLASSIFIED_TRANSACTION
+  RECONCILIATION_DIFFERENCE
+  TAX_SENSITIVE_ITEM
+  DIRECTOR_RELATED_TRANSACTION
+  RELATED_PARTY_TRANSACTION
+  HIGH_VALUE_TRANSACTION
+  DATA_INCONSISTENCY
+  OTHER
+}
+
+enum IssuePriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WAIVED
+  ESCALATED
+}
+
+enum AssetCategory {
+  PLANT_MACHINERY
+  MOTOR_VEHICLE
+  OFFICE_EQUIPMENT
+  COMPUTER_SOFTWARE
+  FURNITURE_FITTINGS
+  RENOVATION
+  LAND_BUILDING
+  OTHER
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  REDUCING_BALANCE
+  NOT_APPLICABLE
+}
+
+enum AssetStatus {
+  ACTIVE
+  FULLY_DEPRECIATED
+  DISPOSED
+  WRITTEN_OFF
+}
+
+enum ReliefStatus {
+  DRAFT
+  CONFIRMED
+  SUBMITTED
+}
+
+model UnresolvedIssue {
+  id             String        @id @default(cuid())
+  entity_id      String
+  issue_type     IssueType
+  title          String
+  description    String?
+  related_txn_id String?
+  related_doc_id String?
+  period         String?
+  priority       IssuePriority @default(MEDIUM)
+  status         IssueStatus   @default(OPEN)
+  assigned_to    String?
+  resolved_by    String?
+  resolved_at    DateTime?
+  resolution     String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  entity         Entity        @relation(fields: [entity_id], references: [id])
+}
+
+model FixedAsset {
+  id                       String             @id @default(cuid())
+  entity_id                String
+  asset_code               String?
+  asset_name               String
+  asset_category           AssetCategory
+  acquisition_date         DateTime
+  cost                     Decimal            @db.Decimal(15, 2)
+  useful_life_years        Int?
+  depreciation_method      DepreciationMethod @default(STRAIGHT_LINE)
+  annual_depreciation      Decimal?           @db.Decimal(15, 2)
+  accumulated_depreciation Decimal            @db.Decimal(15, 2) @default(0)
+  net_book_value           Decimal?           @db.Decimal(15, 2)
+  ca_rate_percentage       Decimal?           @db.Decimal(5, 2)
+  ca_initial_allowance     Decimal?           @db.Decimal(15, 2)
+  ca_annual_allowance      Decimal?           @db.Decimal(15, 2)
+  ca_accumulated_claimed   Decimal?           @db.Decimal(15, 2)
+  disposal_date            DateTime?
+  disposal_amount          Decimal?           @db.Decimal(15, 2)
+  transaction_id           String?
+  supporting_doc_id        String?
+  status                   AssetStatus        @default(ACTIVE)
+  notes                    String?
+  created_at               DateTime           @default(now())
+  updated_at               DateTime           @updatedAt
+
+  entity                   Entity             @relation(fields: [entity_id], references: [id])
+}
+
+model TaxReliefItem {
+  id                String      @id @default(cuid())
+  entity_id         String
+  assessment_year   Int
+  relief_category   String
+  claimed_amount    Decimal     @db.Decimal(10, 2)
+  max_allowed       Decimal?    @db.Decimal(10, 2)
+  supporting_doc_id String?
+  status            ReliefStatus @default(DRAFT)
+  notes             String?
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+
+  entity            Entity      @relation(fields: [entity_id], references: [id])
+}
+
+// ============================================================
+// PHASE 6: MONTHLY CLOSE & P&L LAYER
+// ============================================================
+
+enum CloseStatus {
+  DRAFT
+  IN_REVIEW
+  CLOSED
+  REOPENED
+  ARCHIVED
+}
+
+enum PnlBasis {
+  CASH
+  ACCRUAL
+  MANAGEMENT
+}
+
+model MonthlyClose {
+  id             String       @id @default(cuid())
+  entity_id      String
+  period_start   DateTime
+  period_end     DateTime
+  status         CloseStatus  @default(DRAFT)
+  checklist_json Json
+  closed_by      String?
+  closed_at      DateTime?
+  reopened_by    String?
+  reopened_at    DateTime?
+  notes          String?
+  archived_at    DateTime?
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+
+  entity         Entity       @relation(fields: [entity_id], references: [id])
+  pnl_snapshots  PnlSnapshot[]
+}
+
+model PnlSnapshot {
+  id                 String        @id @default(cuid())
+  entity_id          String
+  month_close_id     String?
+  period_start       DateTime
+  period_end         DateTime
+  flow_type          FlowType
+  basis              PnlBasis      @default(CASH)
+  revenue_total      Decimal?      @db.Decimal(15, 2)
+  cogs_total         Decimal?      @db.Decimal(15, 2)
+  gross_profit       Decimal?      @db.Decimal(15, 2)
+  opex_total         Decimal?      @db.Decimal(15, 2)
+  other_income_total Decimal?      @db.Decimal(15, 2)
+  finance_cost_total Decimal?      @db.Decimal(15, 2)
+  net_profit         Decimal?      @db.Decimal(15, 2)
+  apportionment_json Json?
+  generated_by       String
+  generated_at       DateTime      @default(now())
+  is_final           Boolean       @default(false)
+
+  entity             Entity        @relation(fields: [entity_id], references: [id])
+  monthly_close      MonthlyClose? @relation(fields: [month_close_id], references: [id])
+}
+
+// ============================================================
+// PHASE 7: TAX PREP LAYER
+// ============================================================
+
+enum TaxAdjustmentType {
+  ADD_BACK_NON_DEDUCTIBLE
+  DEDUCT_CAPITAL_ALLOWANCE
+  DEDUCT_INDUSTRIAL_BUILDING_ALLOWANCE
+  DEDUCT_ACCELERATED_CA
+  DEDUCT_REINVESTMENT_ALLOWANCE
+  DEDUCT_PIONEER_STATUS_EXEMPTION
+  ADD_DEEMED_INCOME
+  DEDUCT_LOSS_CARRIED_FORWARD
+  DEDUCT_UNABSORBED_CA
+  PERSONAL_RELIEF_SELF
+  PERSONAL_RELIEF_SPOUSE
+  PERSONAL_RELIEF_CHILD
+  PERSONAL_RELIEF_MEDICAL
+  PERSONAL_RELIEF_EDUCATION
+  PERSONAL_RELIEF_EPF_SOCSO
+  PERSONAL_RELIEF_LIFESTYLE
+  PERSONAL_RELIEF_EQUIPMENT_DISABLED
+  PERSONAL_RELIEF_INSURANCE
+  PERSONAL_RELIEF_SSPN
+  PERSONAL_RELIEF_EV_CHARGING
+  PERSONAL_RELIEF_DOMESTIC_TRAVEL
+  PERSONAL_RELIEF_BREASTFEEDING
+  SCHEDULE_B_GROSS_INCOME
+  SCHEDULE_B_ALLOWABLE_EXPENSE
+  SCHEDULE_B_ADJUSTED_INCOME
+  PARTNERSHIP_APPORTIONMENT
+  DIRECTOR_REMUNERATION
+  OTHER_ADJUSTMENT
+}
+
+enum TaxAdjustmentStatus {
+  DRAFT
+  CONFIRMED
+  SUBMITTED
+  AMENDED
+}
+
+model TaxAdjustment {
+  id               String                @id @default(cuid())
+  entity_id        String
+  assessment_year  Int
+  flow_type        FlowType
+  adjustment_type  TaxAdjustmentType
+  label            String
+  amount           Decimal               @db.Decimal(15, 2)
+  is_deduction     Boolean               @default(true)
+  lhdn_ref         String?
+  supporting_doc_id String?
+  notes            String?
+  status           TaxAdjustmentStatus   @default(DRAFT)
+  created_by       String
+  created_at       DateTime              @default(now())
+  updated_at       DateTime              @updatedAt
+
+  entity           Entity                @relation(fields: [entity_id], references: [id])
+}
+
+// ============================================================
+// PHASE 8: AUDITOR PACK LAYER
+// ============================================================
+
+enum PackStatus {
+  DRAFT
+  FINALISED
+  SENT
+  ARCHIVED
+}
+
+enum PackItemType {
+  PNL_STATEMENT
+  BALANCE_SHEET_SUMMARY
+  TRANSACTION_LIST
+  DOCUMENT_MANIFEST
+  CHECKLIST_EXPORT
+  TAX_COMPUTATION
+  UNRESOLVED_ISSUES_REPORT
+  AUDIT_TRAIL
+  FIXED_ASSET_SCHEDULE
+  PARTNER_LEDGER
+  CUSTOM
+}
+
+enum PackItemStatus {
+  PENDING
+  GENERATED
+  FAILED
+  SKIPPED
+}
+
+model AuditorPackage {
+  id             String          @id @default(cuid())
+  entity_id      String
+  period_start   DateTime
+  period_end     DateTime
+  assessment_year Int?
+  pack_name      String
+  status         PackStatus      @default(DRAFT)
+  prepared_by    String
+  finalised_by   String?
+  finalised_at   DateTime?
+  sent_to        String?
+  sent_at        DateTime?
+  export_url     String?
+  notes          String?
+  archived_at    DateTime?
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+
+  entity         Entity          @relation(fields: [entity_id], references: [id])
+  items          AuditorPackageItem[]
+}
+
+model AuditorPackageItem {
+  id               String          @id @default(cuid())
+  package_id       String
+  item_type        PackItemType
+  item_label       String
+  status           PackItemStatus  @default(PENDING)
+  file_url         String?
+  file_name        String?
+  generated_at     DateTime?
+  error_message    String?
+  sort_order       Int             @default(0)
+  meta_json        Json?
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+
+  package          AuditorPackage  @relation(fields: [package_id], references: [id])
+}

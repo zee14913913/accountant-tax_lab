@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Global Base Styles — Accountant Work Replacement System
+   ============================================================ */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-page text-ink-primary;
+  }
+
+  /* Tabular numbers for all currency/number displays */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Table base reset */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th {
+    @apply text-table-head text-ink-secondary uppercase tracking-wide text-left;
+  }
+
+  td {
+    @apply text-body;
+  }
+}
+
+@layer components {
+  /* ---- Card ---- */
+  .card {
+    @apply bg-card rounded-card shadow-card border border-border p-6;
+  }
+
+  .card-sm {
+    @apply bg-card rounded-card shadow-card border border-border p-4;
+  }
+
+  /* ---- Page Header ---- */
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-title {
+    @apply text-page-title text-ink-primary;
+  }
+
+  .page-subtitle {
+    @apply text-body text-ink-secondary mt-1;
+  }
+
+  /* ---- Section Header ---- */
+  .section-title {
+    @apply text-section text-ink-primary mb-4;
+  }
+
+  /* ---- Button ---- */
+  .btn-primary {
+    @apply bg-accent text-white rounded-button px-4 py-2 text-body font-medium
+           hover:bg-accent-hover transition-colors duration-150 cursor-pointer
+           inline-flex items-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-ink-primary border border-border rounded-button px-4 py-2
+           text-body font-medium hover:bg-panel transition-colors duration-150 cursor-pointer
+           inline-flex items-center gap-2;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-ink-secondary rounded-button px-3 py-1.5
+           text-body hover:bg-panel transition-colors duration-150 cursor-pointer
+           inline-flex items-center gap-2;
+  }
+
+  /* ---- Badge / Status ---- */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-badge text-label font-medium;
+  }
+
+  .badge-success {
+    @apply badge text-status-success bg-green-50;
+  }
+
+  .badge-warning {
+    @apply badge text-status-warning bg-amber-50;
+  }
+
+  .badge-error {
+    @apply badge text-status-error bg-red-50;
+  }
+
+  .badge-info {
+    @apply badge text-status-info bg-blue-50;
+  }
+
+  .badge-neutral {
+    @apply badge text-ink-secondary bg-panel;
+  }
+
+  /* ---- Table ---- */
+  .data-table {
+    @apply w-full;
+  }
+
+  .data-table thead tr {
+    @apply border-b border-divider;
+  }
+
+  .data-table thead th {
+    @apply py-3 px-4 text-table-head text-ink-muted uppercase tracking-wide;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-divider hover:bg-panel transition-colors duration-100;
+  }
+
+  .data-table tbody td {
+    @apply py-3 px-4 text-body text-ink-primary;
+  }
+
+  .data-table tbody td.amount {
+    @apply text-right tabular-nums font-medium;
+  }
+
+  /* ---- Form Input ---- */
+  .form-input {
+    @apply w-full border border-border rounded-input px-3 py-2 text-body
+           bg-white text-ink-primary placeholder:text-ink-muted
+           focus:outline-none focus:ring-2 focus:ring-ink-primary/20 focus:border-ink-primary/40
+           transition-colors duration-150;
+  }
+
+  .form-label {
+    @apply block text-label text-ink-secondary mb-1.5 font-medium;
+  }
+
+  .form-group {
+    @apply mb-5;
+  }
+
+  /* ---- Divider ---- */
+  .divider {
+    @apply border-t border-divider my-6;
+  }
+
+  /* ---- Sidebar Nav ---- */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-button text-body text-ink-secondary
+           hover:bg-panel hover:text-ink-primary transition-colors duration-150 cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-panel text-ink-primary font-medium;
+  }
+}
