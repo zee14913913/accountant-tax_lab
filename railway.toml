@@ -1,7 +1,3 @@
-[build]
-builder = "nixpacks"
-buildCommand = "npm ci && prisma generate && next build"
-
 [deploy]
 preDeployCommand = "npx prisma migrate deploy"
 startCommand = "node .next/standalone/server.js"
@@ -9,9 +5,3 @@ healthcheckPath = "/"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-
-[nixpacks]
-nixpacksVersion = "1"
-
-[nixpacks.variables]
-NODE_VERSION = "20"
