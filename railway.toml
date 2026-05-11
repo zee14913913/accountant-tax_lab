@@ -1,5 +1,9 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
 [deploy]
-preDeployCommand = "npx prisma db push --skip-generate"
+preDeployCommand = "node node_modules/prisma/build/index.js db push --skip-generate"
 startCommand = "node server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120
