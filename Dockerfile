@@ -1,6 +1,6 @@
 FROM node:20-alpine AS base
 
-# ── deps stage: install ALL dependencies (including devDeps for prisma generate) ─
+# ── deps stage: install ALL dependencies ─────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
@@ -47,18 +47,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public           ./public
 
-# Prisma: copy the entire prisma package (contains .wasm files, query engines, etc.)
-# and the generated client. The .bin/prisma wrapper is a symlink → ../prisma/build/index.js
-# so we must copy the full prisma package to resolve wasm siblings correctly.
+# Prisma generated client (needed at runtime for DB queries)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma    ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma    ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma     ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma                  ./prisma
-
-# Create the .bin/prisma symlink pointing to the correct relative path
-RUN mkdir -p ./node_modules/.bin && \
-    ln -sf ../prisma/build/index.js ./node_modules/.bin/prisma && \
-    chmod +x ./node_modules/prisma/build/index.js
 
 USER nextjs
 
