@@ -12,11 +12,11 @@ const PatchSchema = z.object({
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const record = await prisma.monthlyClose.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         entity: {
           select: {
@@ -44,7 +44,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await req.json()
@@ -53,13 +53,13 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
     }
 
-    const existing = await prisma.monthlyClose.findUnique({ where: { id: params.id } })
+    const existing = await prisma.monthlyClose.findUnique({ where: { id: (await params).id } })
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
     const updated = await prisma.monthlyClose.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...(parsed.data.status && { status: parsed.data.status }),
         ...(parsed.data.checklist_json && { checklist_json: parsed.data.checklist_json }),

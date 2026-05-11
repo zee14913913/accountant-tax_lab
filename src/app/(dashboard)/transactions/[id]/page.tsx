@@ -14,7 +14,7 @@ export default async function TransactionDetailPage({ params }: { params: Promis
   const txn = await prisma.transaction.findFirst({
     where: { id: txnId, archived_at: null },
     include: {
-      entity:              { select: { id: true, entity_name: true, flow_type: true, client: { select: { legal_name: true } } } },
+      entity:              { select: { id: true, entity_name: true, flow_type: true, client_id: true, client: { select: { legal_name: true } } } },
       bank_account:        { select: { bank_name: true, account_name: true, account_no: true } },
       import_batch:        { select: { id: true, statement_month: true, source_file_name: true } },
       accounting_category: true,

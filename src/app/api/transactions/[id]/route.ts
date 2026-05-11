@@ -16,10 +16,10 @@ const UpdateTransactionSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const txn = await prisma.transaction.findFirst({
-    where: { id: params.id, archived_at: null },
+    where: { id: (await params).id, archived_at: null },
     include: {
       accounting_category: true,
       tax_category:        true,
@@ -36,23 +36,24 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = UpdateTransactionSchema.parse(body)
 
-    const before = await prisma.transaction.findFirst({ where: { id: params.id } })
+    const before = await prisma.transaction.findFirst({ where: { id: (await params).id } })
     if (!before) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
 
     const updated = await prisma.transaction.update({
-      where: { id: params.id },
-      data:  validated,
+      where: { id: (await params).id },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data:  validated as any,
     })
 
     await writeAuditLog({
       table_name:  'transactions',
-      record_id:   params.id,
+      record_id:   (await params).id,
       action:      'UPDATE',
       before_json: {
         accounting_category_id: before.accounting_category_id,
@@ -77,9 +78,9 @@ export async function PATCH(
 // Soft archive — transactions are NOT hard deleted
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const before = await prisma.transaction.findFirst({ where: { id: params.id } })
+  const before = await prisma.transaction.findFirst({ where: { id: (await params).id } })
   if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Only allow archiving manual transactions
@@ -90,13 +91,13 @@ export async function DELETE(
   }
 
   const archived = await prisma.transaction.update({
-    where: { id: params.id },
+    where: { id: (await params).id },
     data:  { archived_at: new Date(), archived_by: 'system' },
   })
 
   await writeAuditLog({
     table_name:  'transactions',
-    record_id:   params.id,
+    record_id:   (await params).id,
     action:      'ARCHIVE',
     before_json: before,
     after_json:  archived,

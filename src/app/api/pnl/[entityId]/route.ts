@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { entityId: string } }
+  { params }: { params: Promise<{ entityId: string }> }
 ) {
   try {
     const { searchParams } = new URL(req.url)
@@ -12,7 +12,7 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') ?? '24')
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
-    const where: Record<string, unknown> = { entity_id: params.entityId }
+    const where: Record<string, unknown> = { entity_id: (await params).entityId }
     if (is_final === 'true') where.is_final = true
     if (is_final === 'false') where.is_final = false
 

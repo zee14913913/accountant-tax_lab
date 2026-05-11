@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const body      = await request.json()
     const validated = CreateIssueSchema.parse(body)
 
-    const issue = await prisma.unresolvedIssue.create({ data: validated })
+    const issue = await prisma.unresolvedIssue.create({ data: validated as any })
 
     await writeAuditLog({
       table_name: 'unresolved_issues',

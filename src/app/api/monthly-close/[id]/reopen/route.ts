@@ -11,7 +11,7 @@ const ReopenSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await req.json()
@@ -20,7 +20,7 @@ export async function POST(
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
     }
 
-    const existing = await prisma.monthlyClose.findUnique({ where: { id: params.id } })
+    const existing = await prisma.monthlyClose.findUnique({ where: { id: (await params).id } })
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
@@ -33,7 +33,7 @@ export async function POST(
     }
 
     const updated = await prisma.monthlyClose.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status: 'REOPENED',
         reopened_by: parsed.data.actor_id,

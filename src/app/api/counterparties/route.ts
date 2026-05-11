@@ -38,7 +38,10 @@ export async function POST(request: NextRequest) {
     const body      = await request.json()
     const validated = CreateCounterpartySchema.parse(body)
 
-    const counterparty = await prisma.counterparty.create({ data: validated })
+    const counterparty = await prisma.counterparty.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: validated as any,
+    })
 
     await writeAuditLog({
       table_name: 'counterparties',

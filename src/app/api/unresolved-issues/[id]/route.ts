@@ -19,10 +19,10 @@ const PatchIssueSchema = z.object({
 // ---------------------------------------------------------------------------
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const issue = await prisma.unresolvedIssue.findUnique({
-    where: { id: params.id },
+    where: { id: (await params).id },
     include: {
       entity: {
         select: { entity_name: true, flow_type: true },
@@ -42,13 +42,13 @@ export async function GET(
 // ---------------------------------------------------------------------------
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = PatchIssueSchema.parse(body)
 
-    const existing = await prisma.unresolvedIssue.findUnique({ where: { id: params.id } })
+    const existing = await prisma.unresolvedIssue.findUnique({ where: { id: (await params).id } })
     if (!existing) {
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
     }
@@ -67,7 +67,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.unresolvedIssue.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  updateData,
       include: {
         entity: { select: { entity_name: true, flow_type: true } },
@@ -76,7 +76,7 @@ export async function PATCH(
 
     await writeAuditLog({
       table_name: 'unresolved_issues',
-      record_id:  params.id,
+      record_id:  (await params).id,
       action:     'UPDATE',
       before_json: existing,
       after_json:  updateData,

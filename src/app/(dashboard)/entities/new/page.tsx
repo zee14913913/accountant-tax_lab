@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -48,7 +48,7 @@ const FRAMEWORK_OPTIONS = [
   { value: 'NONE',       label: 'None' },
 ]
 
-export default function NewEntityPage() {
+function NewEntityForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedClientId = searchParams.get('client_id') ?? ''
@@ -385,5 +385,13 @@ export default function NewEntityPage() {
         </Card>
       </form>
     </div>
+  )
+}
+
+export default function NewEntityPage() {
+  return (
+    <Suspense fallback={<div className="page-content p-10 text-center text-ink-muted">Loading…</div>}>
+      <NewEntityForm />
+    </Suspense>
   )
 }

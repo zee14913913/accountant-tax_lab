@@ -19,10 +19,10 @@ const PatchPackSchema = z.object({
 // ---------------------------------------------------------------------------
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const pack = await prisma.auditorPackage.findUnique({
-    where: { id: params.id },
+    where: { id: (await params).id },
     include: {
       items: { orderBy: { sort_order: 'asc' } },
       entity: {
@@ -47,13 +47,13 @@ export async function GET(
 // ---------------------------------------------------------------------------
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = PatchPackSchema.parse(body)
 
-    const existing = await prisma.auditorPackage.findUnique({ where: { id: params.id } })
+    const existing = await prisma.auditorPackage.findUnique({ where: { id: (await params).id } })
     if (!existing) {
       return NextResponse.json({ error: 'Package not found' }, { status: 404 })
     }
@@ -80,7 +80,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.auditorPackage.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  updateData,
       include: {
         items: { orderBy: { sort_order: 'asc' } },
@@ -96,7 +96,7 @@ export async function PATCH(
 
     await writeAuditLog({
       table_name: 'auditor_packages',
-      record_id:  params.id,
+      record_id:  (await params).id,
       action:     'UPDATE',
       before_json: existing,
       after_json:  updateData,

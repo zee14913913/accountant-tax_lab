@@ -25,14 +25,14 @@ const GeneratePnlSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { entityId: string } }
+  { params }: { params: Promise<{ entityId: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = GeneratePnlSchema.parse(body)
 
     const entity = await prisma.entity.findFirst({
-      where:   { id: params.entityId, archived_at: null },
+      where:   { id: (await params).entityId, archived_at: null },
       include: { partners: { where: { is_active: true } } },
     })
 
@@ -50,7 +50,7 @@ export async function POST(
     // Aggregate transactions by report_group (only classified, not archived)
     const transactions = await prisma.transaction.findMany({
       where: {
-        entity_id:   params.entityId,
+        entity_id:   (await params).entityId,
         archived_at: null,
         txn_date:    { gte: periodStart, lte: periodEnd },
         accounting_category_id: { not: null },
@@ -113,7 +113,7 @@ export async function POST(
     // Upsert snapshot (one per entity + period)
     const snapshot = await prisma.pnlSnapshot.create({
       data: {
-        entity_id:          params.entityId,
+        entity_id:          (await params).entityId,
         month_close_id:     validated.month_close_id ?? null,
         period_start:       periodStart,
         period_end:         periodEnd,
@@ -126,7 +126,8 @@ export async function POST(
         other_income_total,
         finance_cost_total,
         net_profit,
-        apportionment_json,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        apportionment_json: apportionment_json as any,
         generated_by:       validated.generated_by,
         is_final:           false,
       },

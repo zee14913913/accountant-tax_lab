@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const body      = await request.json()
     const validated = CreateEntitySchema.parse(body)
 
-    const entity = await prisma.entity.create({ data: validated })
+    const entity = await prisma.entity.create({ data: validated as any })
 
     await writeAuditLog({
       table_name: 'entities',

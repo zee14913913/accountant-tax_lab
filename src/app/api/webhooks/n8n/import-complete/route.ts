@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
         source_transaction_count:   body.source_transaction_count ?? body.transactions?.length,
         imported_transaction_count: inserted,
         unparsed_count:             body.unparsed_count ?? 0,
-        parse_errors_json:          body.parse_errors ? { errors: body.parse_errors } : undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        parse_errors_json:          (body.parse_errors ? { errors: body.parse_errors } : undefined) as any,
       },
     })
 

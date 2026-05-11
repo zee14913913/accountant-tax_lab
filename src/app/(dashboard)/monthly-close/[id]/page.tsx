@@ -165,7 +165,7 @@ export default function MonthlyCloseDetailPage() {
     const next = current === 'done' ? 'pending' : 'done'
     const updatedItems = record.checklist_json.items.map(item =>
       item.key === key
-        ? { ...item, status: next, completed_by: next === 'done' ? actorId : undefined, completed_at: next === 'done' ? new Date().toISOString() : undefined }
+        ? { ...item, status: next as 'pending' | 'done' | 'na', completed_by: next === 'done' ? actorId : undefined, completed_at: next === 'done' ? new Date().toISOString() : undefined }
         : item
     )
     const newChecklist = { ...record.checklist_json, items: updatedItems }

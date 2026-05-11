@@ -12,10 +12,10 @@ import { writeAuditLog } from '@/lib/audit'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const batch = await prisma.importBatch.findFirst({
-    where:   { id: params.id, archived_at: null },
+    where:   { id: (await params).id, archived_at: null },
     include: {
       entity:       { select: { id: true, entity_name: true, flow_type: true } },
       bank_account: { select: { id: true, bank_name: true, account_no: true, currency: true } },
@@ -34,13 +34,13 @@ export async function POST(
 
   // Mark as PROCESSING
   await prisma.importBatch.update({
-    where: { id: params.id },
+    where: { id: (await params).id },
     data:  { import_status: 'PROCESSING' },
   })
 
   await writeAuditLog({
     table_name:  'import_batches',
-    record_id:   params.id,
+    record_id:   (await params).id,
     action:      'UPDATE',
     before_json: { import_status: batch.import_status },
     after_json:  { import_status: 'PROCESSING' },
@@ -76,7 +76,7 @@ export async function POST(
     if (!n8nResponse.ok) {
       // Revert to PENDING if n8n failed to accept
       await prisma.importBatch.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data:  { import_status: 'PENDING' },
       })
       const errText = await n8nResponse.text()
@@ -86,7 +86,7 @@ export async function POST(
   } catch (err) {
     // Network error — revert
     await prisma.importBatch.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  { import_status: 'PENDING' },
     })
     console.error('[process] n8n webhook error:', err)
@@ -98,7 +98,7 @@ export async function POST(
 
   return NextResponse.json({
     data: {
-      import_batch_id: params.id,
+      import_batch_id: (await params).id,
       status: 'PROCESSING',
       message: 'Parser workflow triggered. Transactions will appear once processing completes.',
     },

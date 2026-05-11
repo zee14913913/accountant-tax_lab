@@ -11,7 +11,7 @@ const GenerateTaxPrepSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { entityId: string } }
+  { params }: { params: Promise<{ entityId: string }> }
 ) {
   try {
     const body      = await req.json()
@@ -19,7 +19,7 @@ export async function POST(
 
     // Verify entity exists
     const entity = await prisma.entity.findFirst({
-      where: { id: params.entityId, archived_at: null },
+      where: { id: (await params).entityId, archived_at: null },
     })
     if (!entity) {
       return NextResponse.json({ error: 'Entity not found' }, { status: 404 })
@@ -37,7 +37,7 @@ export async function POST(
     const webhookUrl = `${webhookBase}/webhook/tax-prep-generate`
 
     const webhookPayload = {
-      entity_id:       params.entityId,
+      entity_id:       (await params).entityId,
       assessment_year: validated.assessment_year,
       flow_type:       entity.flow_type,
       actor_id:        validated.actor_id,

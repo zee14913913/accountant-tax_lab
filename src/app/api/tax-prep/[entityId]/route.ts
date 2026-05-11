@@ -80,7 +80,7 @@ function getFormInfo(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { entityId: string } }
+  { params }: { params: Promise<{ entityId: string }> }
 ) {
   try {
     const { searchParams } = new URL(req.url)
@@ -89,7 +89,7 @@ export async function GET(
 
     // 1. Load entity with flow_type and client
     const entity = await prisma.entity.findFirst({
-      where:   { id: params.entityId, archived_at: null },
+      where:   { id: (await params).entityId, archived_at: null },
       include: {
         client: { select: { id: true, legal_name: true, display_name: true } },
       },
@@ -101,7 +101,7 @@ export async function GET(
     // 2. Load filing profiles for this entity
     const filingProfiles = await prisma.filingProfile.findMany({
       where: {
-        entity_id: params.entityId,
+        entity_id: (await params).entityId,
         ...(rawYear ? { assessment_year: assessmentYear } : {}),
       },
     })
@@ -112,7 +112,7 @@ export async function GET(
 
     const pnlSnapshot = await prisma.pnlSnapshot.findFirst({
       where: {
-        entity_id: params.entityId,
+        entity_id: (await params).entityId,
         is_final:  true,
         period_end: { gte: periodStart, lte: periodEnd },
       },
@@ -122,7 +122,7 @@ export async function GET(
     // Fallback: latest snapshot even if not final
     const pnlFallback = !pnlSnapshot
       ? await prisma.pnlSnapshot.findFirst({
-          where:   { entity_id: params.entityId, period_end: { gte: periodStart, lte: periodEnd } },
+          where:   { entity_id: (await params).entityId, period_end: { gte: periodStart, lte: periodEnd } },
           orderBy: { generated_at: 'desc' },
         })
       : null
@@ -131,26 +131,26 @@ export async function GET(
 
     // 4. Load TaxAdjustments for entity + assessment_year
     const taxAdjustments = await prisma.taxAdjustment.findMany({
-      where:   { entity_id: params.entityId, assessment_year: assessmentYear },
+      where:   { entity_id: (await params).entityId, assessment_year: assessmentYear },
       orderBy: [{ adjustment_type: 'asc' }, { created_at: 'asc' }],
     })
 
     // 5. Load TaxReliefItems for entity + assessment_year
     const taxReliefItems = await prisma.taxReliefItem.findMany({
-      where:   { entity_id: params.entityId, assessment_year: assessmentYear },
+      where:   { entity_id: (await params).entityId, assessment_year: assessmentYear },
       orderBy: { relief_category: 'asc' },
     })
 
     // 6. Load FixedAssets for entity
     const fixedAssets = await prisma.fixedAsset.findMany({
-      where:   { entity_id: params.entityId, status: { not: 'DISPOSED' } },
+      where:   { entity_id: (await params).entityId, status: { not: 'DISPOSED' } },
       orderBy: { asset_name: 'asc' },
     })
 
     // 7. Load Partners if PARTNERSHIP
     const partners = entity.flow_type === 'PARTNERSHIP'
       ? await prisma.partner.findMany({
-          where:   { entity_id: params.entityId, is_active: true },
+          where:   { entity_id: (await params).entityId, is_active: true },
           orderBy: { partner_name: 'asc' },
         })
       : []

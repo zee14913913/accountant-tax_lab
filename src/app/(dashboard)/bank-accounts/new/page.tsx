@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -20,7 +20,7 @@ const BANK_OPTIONS = [
   'Citibank Malaysia', 'Bank Rakyat', 'BSN', 'Agro Bank', 'Bank Simpanan Nasional',
 ]
 
-export default function NewBankAccountPage() {
+function NewBankAccountForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedEntityId = searchParams.get('entity_id') ?? ''
@@ -295,5 +295,13 @@ export default function NewBankAccountPage() {
         </Card>
       </form>
     </div>
+  )
+}
+
+export default function NewBankAccountPage() {
+  return (
+    <Suspense fallback={<div className="page-content p-10 text-center text-ink-muted">Loading…</div>}>
+      <NewBankAccountForm />
+    </Suspense>
   )
 }

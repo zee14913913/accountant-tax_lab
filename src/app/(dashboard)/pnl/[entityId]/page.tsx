@@ -234,7 +234,7 @@ export default async function PnlPage({ params, searchParams }: {
                     </tr>
                   </thead>
                   <tbody>
-                    {((snapshot.apportionment_json as { partners: ApportionmentEntry[] }).partners ?? []).map((p: ApportionmentEntry) => (
+                    {((snapshot.apportionment_json as unknown as { partners: ApportionmentEntry[] }).partners ?? []).map((p: ApportionmentEntry) => (
                       <tr key={p.partner_id}>
                         <td className="py-2 px-0 text-body text-ink-primary">{p.name}</td>
                         <td className="py-2 px-2 text-right text-label tabular-nums">{p.share_pct.toFixed(2)}%</td>

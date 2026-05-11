@@ -11,10 +11,10 @@ import { writeAuditLog } from '@/lib/audit'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const doc = await prisma.supportingDocument.findFirst({
-    where: { id: params.id, archived_at: null },
+    where: { id: (await params).id, archived_at: null },
     include: {
       entity: { select: { flow_type: true } },
     },
@@ -32,13 +32,13 @@ export async function POST(
 
   // Mark as PROCESSING
   await prisma.supportingDocument.update({
-    where: { id: params.id },
+    where: { id: (await params).id },
     data:  { ocr_status: 'PROCESSING' },
   })
 
   await writeAuditLog({
     table_name: 'supporting_documents',
-    record_id:  params.id,
+    record_id:  (await params).id,
     action:     'UPDATE',
     before_json: { ocr_status: doc.ocr_status },
     after_json:  { ocr_status: 'PROCESSING' },
@@ -70,14 +70,14 @@ export async function POST(
 
     if (!n8nResponse.ok) {
       await prisma.supportingDocument.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data:  { ocr_status: 'PENDING' },
       })
       return NextResponse.json({ error: 'OCR service rejected request' }, { status: 502 })
     }
   } catch {
     await prisma.supportingDocument.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  { ocr_status: 'PENDING' },
     })
     return NextResponse.json({
@@ -87,6 +87,6 @@ export async function POST(
   }
 
   return NextResponse.json({
-    data: { document_id: params.id, ocr_status: 'PROCESSING' },
+    data: { document_id: (await params).id, ocr_status: 'PROCESSING' },
   })
 }

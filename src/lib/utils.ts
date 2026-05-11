@@ -21,11 +21,12 @@ export function formatCurrency(
 
 export function formatDate(date: Date | string, format: 'short' | 'medium' | 'long' = 'medium'): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  const options: Intl.DateTimeFormatOptions = {
+  const formatMap: Record<string, Intl.DateTimeFormatOptions> = {
     short:  { day: '2-digit', month: '2-digit', year: 'numeric' },
     medium: { day: 'numeric', month: 'short', year: 'numeric' },
     long:   { day: 'numeric', month: 'long', year: 'numeric' },
-  }[format]
+  }
+  const options = formatMap[format]
   return d.toLocaleDateString('en-MY', options)
 }
 

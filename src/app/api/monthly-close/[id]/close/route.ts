@@ -31,14 +31,14 @@ const CloseSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = CloseSchema.parse(body)
 
     const monthlyClose = await prisma.monthlyClose.findFirst({
-      where:   { id: params.id, archived_at: null },
+      where:   { id: (await params).id, archived_at: null },
       include: { entity: { select: { id: true, flow_type: true } } },
     })
 
@@ -88,7 +88,7 @@ export async function POST(
     }
 
     // Auto-update checklist items based on actual state
-    const checklist = monthlyClose.checklist_json as ChecklistJson
+    const checklist = monthlyClose.checklist_json as unknown as ChecklistJson
     const now = new Date().toISOString()
     const updatedItems = checklist.items.map((item: ChecklistItem) => {
       // Auto-complete certain items based on system state
@@ -102,19 +102,20 @@ export async function POST(
     })
 
     const updatedClose = await prisma.monthlyClose.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status:         'CLOSED',
         closed_by:      validated.closed_by,
         closed_at:      new Date(),
-        checklist_json: { ...checklist, items: updatedItems },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        checklist_json: { ...checklist, items: updatedItems } as any,
         notes:          validated.notes ?? monthlyClose.notes,
       },
     })
 
     await writeAuditLog({
       table_name:  'monthly_close',
-      record_id:   params.id,
+      record_id:   (await params).id,
       action:      'CLOSE',
       before_json: { status: monthlyClose.status },
       after_json:  { status: 'CLOSED', closed_by: validated.closed_by, blockers_at_close: blockers },

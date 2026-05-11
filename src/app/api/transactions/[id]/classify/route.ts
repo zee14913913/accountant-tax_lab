@@ -24,7 +24,7 @@ const ClassifySchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
@@ -33,7 +33,7 @@ export async function POST(
     const { actor_id, ...updateData } = validated
 
     const before = await prisma.transaction.findFirst({
-      where: { id: params.id, archived_at: null },
+      where: { id: (await params).id, archived_at: null },
       select: {
         id: true,
         accounting_category_id: true,
@@ -49,7 +49,7 @@ export async function POST(
     if (!before) return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
 
     const updated = await prisma.transaction.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  updateData,
       include: {
         accounting_category: { select: { id: true, code: true, name: true, report_group: true } },
@@ -60,7 +60,7 @@ export async function POST(
 
     await writeAuditLog({
       table_name:  'transactions',
-      record_id:   params.id,
+      record_id:   (await params).id,
       action:      'REVIEW_APPROVE',
       before_json: before,
       after_json:  {

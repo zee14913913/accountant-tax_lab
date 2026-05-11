@@ -14,7 +14,7 @@ const GenerateSchema = z.object({
 // ---------------------------------------------------------------------------
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
@@ -22,7 +22,7 @@ export async function POST(
 
     // Load package with entity and items
     const pack = await prisma.auditorPackage.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         entity: { select: { id: true, flow_type: true } },
         items:  true,
@@ -57,7 +57,7 @@ export async function POST(
 
     await writeAuditLog({
       table_name: 'auditor_packages',
-      record_id:  params.id,
+      record_id:  (await params).id,
       action:     'UPDATE',
       after_json: { action: 'generate_triggered', items_requested },
       actor_id:   validated.actor_id,

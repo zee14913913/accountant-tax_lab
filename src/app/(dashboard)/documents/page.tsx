@@ -55,14 +55,15 @@ function verifyVariant(status: string): 'success' | 'warning' | 'error' | 'neutr
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined }
+  searchParams: Promise<{ [key: string]: string | undefined }>
 }) {
-  const entity_id      = searchParams.entity_id
-  const document_scope = searchParams.document_scope
-  const document_type  = searchParams.document_type
-  const verification   = searchParams.verification_status
-  const period         = searchParams.period
-  const page           = parseInt(searchParams.page ?? '1', 10)
+  const sp             = await searchParams
+  const entity_id      = sp.entity_id
+  const document_scope = sp.document_scope
+  const document_type  = sp.document_type
+  const verification   = sp.verification_status
+  const period         = sp.period
+  const page           = parseInt(sp.page ?? '1', 10)
   const pageSize       = 50
 
   const where: Record<string, unknown> = { archived_at: null }

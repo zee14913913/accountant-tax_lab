@@ -13,10 +13,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { entityId: string } }
+  { params }: { params: Promise<{ entityId: string }> }
 ) {
   const entity = await prisma.entity.findFirst({
-    where:   { id: params.entityId, archived_at: null },
+    where:   { id: (await params).entityId, archived_at: null },
     include: {
       client:          { select: { id: true, legal_name: true, client_code: true } },
       filing_profiles: { where: { is_active: true } },

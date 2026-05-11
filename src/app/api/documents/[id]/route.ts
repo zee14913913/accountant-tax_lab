@@ -12,10 +12,10 @@ const UpdateDocumentSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const doc = await prisma.supportingDocument.findFirst({
-    where: { id: params.id, archived_at: null },
+    where: { id: (await params).id, archived_at: null },
     include: {
       entity:      { select: { id: true, entity_name: true, flow_type: true } },
       transaction: { select: { id: true, txn_date: true, description: true, amount: true, direction: true, bank_account: { select: { bank_name: true } } } },
@@ -28,18 +28,19 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = UpdateDocumentSchema.parse(body)
 
-    const before = await prisma.supportingDocument.findFirst({ where: { id: params.id } })
+    const before = await prisma.supportingDocument.findFirst({ where: { id: (await params).id } })
     if (!before) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
 
     const updated = await prisma.supportingDocument.update({
-      where: { id: params.id },
-      data:  validated,
+      where: { id: (await params).id },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data:  validated as any,
     })
 
     // If marked VERIFIED and bound to a transaction, update transaction document_status
@@ -52,7 +53,7 @@ export async function PATCH(
 
     await writeAuditLog({
       table_name:  'supporting_documents',
-      record_id:   params.id,
+      record_id:   (await params).id,
       action:      'UPDATE',
       before_json: { verification_status: before.verification_status, document_type: before.document_type },
       after_json:  validated,
@@ -71,13 +72,13 @@ export async function PATCH(
 // Soft archive
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const before = await prisma.supportingDocument.findFirst({ where: { id: params.id } })
+  const before = await prisma.supportingDocument.findFirst({ where: { id: (await params).id } })
   if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const archived = await prisma.supportingDocument.update({
-    where: { id: params.id },
+    where: { id: (await params).id },
     data:  { archived_at: new Date() },
   })
 
@@ -96,7 +97,7 @@ export async function DELETE(
 
   await writeAuditLog({
     table_name: 'supporting_documents',
-    record_id:  params.id,
+    record_id:  (await params).id,
     action:     'ARCHIVE',
     before_json: before,
     after_json:  archived,

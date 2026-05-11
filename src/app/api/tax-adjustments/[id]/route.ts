@@ -18,11 +18,11 @@ const PatchTaxAdjustmentSchema = z.object({
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adjustment = await prisma.taxAdjustment.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         entity: {
           select: {
@@ -48,14 +48,14 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body      = await req.json()
     const validated = PatchTaxAdjustmentSchema.parse(body)
 
     const existing = await prisma.taxAdjustment.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     })
     if (!existing) {
       return NextResponse.json({ error: 'TaxAdjustment not found' }, { status: 404 })
@@ -71,13 +71,13 @@ export async function PATCH(
     if (validated.status       !== undefined) updateData.status       = validated.status
 
     const updated = await prisma.taxAdjustment.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data:  updateData,
     })
 
     await writeAuditLog({
       table_name: 'tax_adjustments',
-      record_id:  params.id,
+      record_id:  (await params).id,
       action:     'UPDATE',
       before_json: {
         label:        existing.label,

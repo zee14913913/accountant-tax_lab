@@ -17,17 +17,17 @@ const PatchItemSchema = z.object({
 // ---------------------------------------------------------------------------
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
   try {
     const body      = await request.json()
     const validated = PatchItemSchema.parse(body)
 
     const existing = await prisma.auditorPackageItem.findUnique({
-      where: { id: params.itemId },
+      where: { id: (await params).itemId },
     })
 
-    if (!existing || existing.package_id !== params.id) {
+    if (!existing || existing.package_id !== (await params).id) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
@@ -43,13 +43,13 @@ export async function PATCH(
     }
 
     const updated = await prisma.auditorPackageItem.update({
-      where: { id: params.itemId },
+      where: { id: (await params).itemId },
       data:  updateData,
     })
 
     await writeAuditLog({
       table_name: 'auditor_package_items',
-      record_id:  params.itemId,
+      record_id:  (await params).itemId,
       action:     'UPDATE',
       before_json: existing,
       after_json:  updateData,

@@ -38,16 +38,17 @@ function riskVariant(flag: string | null): 'error' | 'warning' | 'neutral' {
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined }
+  searchParams: Promise<{ [key: string]: string | undefined }>
 }) {
-  const entity_id         = searchParams.entity_id
-  const review_status     = searchParams.review_status
-  const document_status   = searchParams.document_status
-  const risk_flag         = searchParams.risk_flag
-  const direction         = searchParams.direction
-  const unclassified_only = searchParams.unclassified_only === 'true'
-  const month             = searchParams.month
-  const page              = parseInt(searchParams.page ?? '1', 10)
+  const sp                = await searchParams
+  const entity_id         = sp.entity_id
+  const review_status     = sp.review_status
+  const document_status   = sp.document_status
+  const risk_flag         = sp.risk_flag
+  const direction         = sp.direction
+  const unclassified_only = sp.unclassified_only === 'true'
+  const month             = sp.month
+  const page              = parseInt(sp.page ?? '1', 10)
   const pageSize          = 100
 
   const where: Record<string, unknown> = { archived_at: null }
