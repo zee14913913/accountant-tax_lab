@@ -113,7 +113,9 @@ export default async function EntitiesPage() {
                 <tr key={entity.id}>
                   <td className="py-3 px-6">
                     <div>
-                      <p className="font-medium text-ink-primary">{entity.entity_name}</p>
+                      <Link href={`/entities/${entity.id}`} className="font-medium text-ink-primary hover:underline">
+                        {entity.entity_name}
+                      </Link>
                       {entity.tax_reference_no && (
                         <p className="text-label font-mono text-ink-muted">{entity.tax_reference_no}</p>
                       )}

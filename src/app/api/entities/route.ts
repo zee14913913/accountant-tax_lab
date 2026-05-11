@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { writeAuditLog } from '@/lib/audit'
+import { createDefaultFilingProfiles } from '@/lib/seed-filing-profiles'
 import { z } from 'zod'
 
 const CreateEntitySchema = z.object({
@@ -57,6 +58,8 @@ export async function POST(request: NextRequest) {
     const validated = CreateEntitySchema.parse(body)
 
     const entity = await prisma.entity.create({ data: validated as any })
+
+    await createDefaultFilingProfiles(entity.id, entity.flow_type)
 
     await writeAuditLog({
       table_name: 'entities',

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Building2, Landmark, Upload,
   Receipt, FolderOpen, ClipboardList, LineChart,
   CalendarCheck, Calculator, Package, AlertCircle,
-  Settings, Activity,
+  Settings, Activity, BookOpen,
 } from 'lucide-react'
 
 const navItems = [
@@ -22,6 +22,7 @@ const navItems = [
   { href: '/monthly-close',        icon: CalendarCheck,   label: 'Monthly Close' },
   { href: '/pnl',                  icon: LineChart,       label: 'P&L' },
   { href: '/tax-prep',             icon: Calculator,      label: 'Tax Prep' },
+  { href: '/filing-profiles',      icon: BookOpen,        label: 'Filing Profiles' },
   { href: '/auditor-pack',         icon: Package,         label: 'Auditor Pack' },
   { href: '/unresolved-issues',    icon: AlertCircle,     label: 'Issues' },
 ]

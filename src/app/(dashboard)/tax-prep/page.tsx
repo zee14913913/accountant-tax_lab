@@ -1,205 +1,278 @@
-'use client'
+export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
+import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
 
-interface EntityOption {
-  id:          string
-  entity_name: string
-  flow_type:   string
-  client:      { display_name: string | null; legal_name: string }
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const FLOW_LABELS: Record<string, string> = {
+type FlowType = 'INDIVIDUAL_ONLY' | 'INDIVIDUAL_BUSINESS' | 'PARTNERSHIP' | 'COMPANY'
+
+const FLOW_LABELS: Record<FlowType, string> = {
   INDIVIDUAL_ONLY:     'Individual Only',
   INDIVIDUAL_BUSINESS: 'Individual + Business',
   PARTNERSHIP:         'Partnership',
-  COMPANY:             'Company / Sdn Bhd',
+  COMPANY:             'Company',
 }
 
-const FLOW_BADGE: Record<string, 'neutral' | 'info' | 'warning' | 'success'> = {
-  INDIVIDUAL_ONLY:     'neutral',
-  INDIVIDUAL_BUSINESS: 'info',
-  PARTNERSHIP:         'warning',
-  COMPANY:             'success',
-}
-
-// Malaysia 2026 tax forms per flow type
-const FLOW_FORM: Record<string, string> = {
+const FLOW_FORM: Record<FlowType, string> = {
   INDIVIDUAL_ONLY:     'Form BE',
   INDIVIDUAL_BUSINESS: 'Form B',
   PARTNERSHIP:         'Form P',
   COMPANY:             'Form C',
 }
 
-const FLOW_DUE: Record<string, string> = {
-  INDIVIDUAL_ONLY:     '30 April',
-  INDIVIDUAL_BUSINESS: '30 June',
-  PARTNERSHIP:         '30 June',
-  COMPANY:             '7 months after FY end',
+const FLOW_DEADLINE: Record<FlowType, string> = {
+  INDIVIDUAL_ONLY:     '30 Apr 2026 (e-Filing: 15 May)',
+  INDIVIDUAL_BUSINESS: '30 Jun 2026 (e-Filing: 15 Jul)',
+  PARTNERSHIP:         '30 Jun 2026 (e-Filing: 15 Jul)',
+  COMPANY:             '7 months from FYE',
 }
 
-export default function TaxPrepSelectorPage() {
-  const router   = useRouter()
-  const [entities,   setEntities]   = useState<EntityOption[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [search,     setSearch]     = useState('')
-  const [filterFlow, setFilterFlow] = useState('')
+const FLOW_ORDER: FlowType[] = [
+  'INDIVIDUAL_ONLY',
+  'INDIVIDUAL_BUSINESS',
+  'PARTNERSHIP',
+  'COMPANY',
+]
 
-  useEffect(() => {
-    setLoading(true)
-    fetch('/api/entities?is_active=true&limit=200')
-      .then(r => r.json())
-      .then(json => setEntities(json.data ?? []))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-  const filtered = entities.filter(e => {
-    const q         = search.toLowerCase()
-    const nameMatch = e.entity_name.toLowerCase().includes(q) ||
-      (e.client.display_name ?? e.client.legal_name).toLowerCase().includes(q)
-    const flowMatch = !filterFlow || e.flow_type === filterFlow
-    return nameMatch && flowMatch
+export default async function TaxPrepPage() {
+  const entities = await prisma.entity.findMany({
+    where:   { is_active: true },
+    include: { client: { select: { legal_name: true, display_name: true } } },
+    orderBy: [{ flow_type: 'asc' }, { entity_name: 'asc' }],
   })
+
+  // Summary counts
+  const total              = entities.length
+  const countByFlow = (ft: FlowType) => entities.filter(e => e.flow_type === ft).length
+
+  const counts: Record<FlowType, number> = {
+    INDIVIDUAL_ONLY:     countByFlow('INDIVIDUAL_ONLY'),
+    INDIVIDUAL_BUSINESS: countByFlow('INDIVIDUAL_BUSINESS'),
+    PARTNERSHIP:         countByFlow('PARTNERSHIP'),
+    COMPANY:             countByFlow('COMPANY'),
+  }
+
+  // Group entities by flow_type
+  const grouped: Record<FlowType, typeof entities> = {
+    INDIVIDUAL_ONLY:     [],
+    INDIVIDUAL_BUSINESS: [],
+    PARTNERSHIP:         [],
+    COMPANY:             [],
+  }
+  for (const e of entities) {
+    const ft = e.flow_type as FlowType
+    if (grouped[ft]) grouped[ft].push(e)
+  }
 
   return (
     <div className="page-content">
+      {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Tax Preparation</h1>
-          <p className="text-label text-ink-muted mt-1">
-            Malaysia Assessment Year 2025 — All entity types eligible (Form BE / B / P / C)
+          <p style={{ color: '#5E5E5E', fontSize: 13, marginTop: 4 }}>
+            Malaysia Assessment Year 2025 — Form BE / B / P / C
           </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-5">
-        <CardContent className="py-3">
-          <div className="flex flex-wrap gap-3 items-center">
-            <input
-              type="search"
-              placeholder="Search entities or clients…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="form-input w-64"
-            />
-            <select
-              value={filterFlow}
-              onChange={e => setFilterFlow(e.target.value)}
-              className="form-input w-56"
-            >
-              <option value="">All Types</option>
-              <option value="INDIVIDUAL_ONLY">Individual Only (Form BE)</option>
-              <option value="INDIVIDUAL_BUSINESS">Individual + Business (Form B)</option>
-              <option value="PARTNERSHIP">Partnership (Form P)</option>
-              <option value="COMPANY">Company / Sdn Bhd (Form C)</option>
-            </select>
-            {(search || filterFlow) && (
-              <button
-                onClick={() => { setSearch(''); setFilterFlow('') }}
-                className="btn-ghost text-label"
-              >
-                Clear
-              </button>
-            )}
-            <span className="text-label text-ink-muted ml-auto">
-              {filtered.length} {filtered.length === 1 ? 'entity' : 'entities'}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {loading ? (
-        <div className="p-10 text-center text-ink-muted">Loading entities…</div>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-ink-muted text-body">
-            No entities found matching your filters.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(e => (
-            <button
-              key={e.id}
-              onClick={() => router.push(`/tax-prep/${e.id}`)}
-              className="card text-left hover:shadow-card-hover transition-shadow cursor-pointer"
-            >
-              <div className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-body leading-tight">{e.entity_name}</p>
-                  <Badge variant={FLOW_BADGE[e.flow_type] ?? 'neutral'} className="flex-shrink-0">
-                    {FLOW_FORM[e.flow_type] ?? e.flow_type}
-                  </Badge>
-                </div>
-                <p className="text-label text-ink-muted">
-                  {e.client.display_name ?? e.client.legal_name}
-                </p>
-                <p className="text-label text-ink-secondary">
-                  {FLOW_LABELS[e.flow_type] ?? e.flow_type}
-                </p>
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-label text-ink-muted">
-                    Due: {FLOW_DUE[e.flow_type] ?? '—'}
-                  </span>
-                  <span className="text-label text-ink-muted">→ Open Workbench</span>
-                </div>
-              </div>
-            </button>
-          ))}
+      {/* ── Summary Stats ───────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: 16,
+          marginBottom: 32,
+        }}
+      >
+        {/* Total */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #DDDDDA',
+            borderRadius: 8,
+            padding: 24,
+          }}
+        >
+          <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5E5E5E', marginBottom: 8 }}>
+            Total Entities
+          </p>
+          <p style={{ fontSize: 28, fontWeight: 700, color: '#111111', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+            {total}
+          </p>
         </div>
-      )}
 
-      {/* Guide */}
-      <Card className="mt-6">
-        <CardHeader><CardTitle>Malaysia 2026 Tax Form Guide</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                flow:  'INDIVIDUAL_ONLY',
-                form:  'Form BE',
-                badge: 'neutral' as const,
-                due:   '30 April 2026',
-                desc:  'Employment income only. EA Form from employer required. No business income.',
-              },
-              {
-                flow:  'INDIVIDUAL_BUSINESS',
-                form:  'Form B',
-                badge: 'info' as const,
-                due:   '30 June 2026',
-                desc:  'Sole proprietor / freelance / enterprise. Schedule B business income + personal reliefs.',
-              },
-              {
-                flow:  'PARTNERSHIP',
-                form:  'Form P',
-                badge: 'warning' as const,
-                due:   '30 June 2026',
-                desc:  'Partnership-level return. Profit apportioned per partner %. Each partner files Form B separately.',
-              },
-              {
-                flow:  'COMPANY',
-                form:  'Form C + CP204',
-                badge: 'success' as const,
-                due:   '7 months after FY end',
-                desc:  'Sdn Bhd / Bhd / LLP. SME rates 17% (≤RM150k) / 24%. CP204 bi-monthly installments.',
-              },
-            ].map(item => (
-              <div key={item.flow} className="card-sm p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant={item.badge}>{item.form}</Badge>
-                </div>
-                <p className="text-label font-medium text-ink-primary">{item.due}</p>
-                <p className="text-label text-ink-muted">{item.desc}</p>
-              </div>
-            ))}
+        {FLOW_ORDER.map(ft => (
+          <div
+            key={ft}
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #DDDDDA',
+              borderRadius: 8,
+              padding: 24,
+            }}
+          >
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5E5E5E', marginBottom: 4 }}>
+              {FLOW_FORM[ft]}
+            </p>
+            <p style={{ fontSize: 11, color: '#5E5E5E', marginBottom: 8 }}>
+              {FLOW_LABELS[ft]}
+            </p>
+            <p style={{ fontSize: 28, fontWeight: 700, color: '#111111', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+              {counts[ft]}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
+
+      {/* ── Grouped Tables ──────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        {FLOW_ORDER.map(ft => {
+          const rows = grouped[ft]
+          if (rows.length === 0) return null
+          return (
+            <div key={ft}>
+              {/* Section heading */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111111' }}>
+                  {FLOW_FORM[ft]} — {FLOW_LABELS[ft]}
+                </h2>
+                <span style={{ fontSize: 12, color: '#5E5E5E' }}>
+                  {rows.length} {rows.length === 1 ? 'entity' : 'entities'} · Deadline: {FLOW_DEADLINE[ft]}
+                </span>
+              </div>
+
+              {/* Table */}
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  border: '1px solid #DDDDDA',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #DDDDDA', background: '#F7F7F5' }}>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Entity Name
+                      </th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Client
+                      </th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Flow Type
+                      </th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Financial Year End
+                      </th>
+                      <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Tax Prep Status
+                      </th>
+                      <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#5E5E5E', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((entity, idx) => {
+                      const clientName = entity.client.display_name ?? entity.client.legal_name
+                      return (
+                        <tr
+                          key={entity.id}
+                          style={{
+                            borderBottom: idx < rows.length - 1 ? '1px solid #DDDDDA' : 'none',
+                          }}
+                        >
+                          <td style={{ padding: '12px 16px', color: '#111111', fontWeight: 500 }}>
+                            {entity.entity_name}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#5E5E5E' }}>
+                            {clientName}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                border: '1px solid #DDDDDA',
+                                background: '#F7F7F5',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: '#111111',
+                                letterSpacing: '0.03em',
+                              }}
+                            >
+                              {FLOW_FORM[entity.flow_type as FlowType] ?? entity.flow_type}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#5E5E5E', fontVariantNumeric: 'tabular-nums' }}>
+                            {entity.financial_year_end ?? '—'}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                border: '1px solid #DDDDDA',
+                                background: '#F7F7F5',
+                                fontSize: 11,
+                                fontWeight: 500,
+                                color: '#5E5E5E',
+                              }}
+                            >
+                              Not Started
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <Link
+                              href={`/tax-prep/${entity.id}`}
+                              style={{
+                                display: 'inline-block',
+                                padding: '6px 14px',
+                                borderRadius: 6,
+                                background: '#111111',
+                                color: '#FFFFFF',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Open Tax Prep
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })}
+
+        {total === 0 && (
+          <div
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #DDDDDA',
+              borderRadius: 8,
+              padding: 48,
+              textAlign: 'center',
+              color: '#5E5E5E',
+              fontSize: 14,
+            }}
+          >
+            No active entities found. Add entities via the Entities section.
+          </div>
+        )}
+      </div>
     </div>
   )
 }
