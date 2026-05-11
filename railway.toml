@@ -1,7 +1,7 @@
 [deploy]
-preDeployCommand = "npx prisma migrate deploy"
-startCommand = "node .next/standalone/server.js"
-healthcheckPath = "/"
+preDeployCommand = "npx prisma db push --skip-generate"
+startCommand = "node server.js"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
