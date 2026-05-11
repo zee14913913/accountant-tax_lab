@@ -5,17 +5,26 @@ import { prisma } from '@/lib/prisma'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { FLOW_TYPE_LABELS, FLOW_TYPE_FORM } from '@/lib/utils'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { ClientsTable } from '@/components/clients/ClientsTable'
 
 export default async function ClientsPage() {
   const clients = await prisma.client.findMany({
     where: { archived_at: null },
     include: {
-      entities: { where: { archived_at: null } },
+      entities: { where: { archived_at: null }, select: { id: true } },
       assigned_owner: { select: { name: true } },
     },
     orderBy: { created_at: 'desc' },
   })
+
+  const stats = {
+    total:               clients.length,
+    INDIVIDUAL_ONLY:     clients.filter(c => c.primary_flow_type === 'INDIVIDUAL_ONLY').length,
+    INDIVIDUAL_BUSINESS: clients.filter(c => c.primary_flow_type === 'INDIVIDUAL_BUSINESS').length,
+    PARTNERSHIP:         clients.filter(c => c.primary_flow_type === 'PARTNERSHIP').length,
+    COMPANY:             clients.filter(c => c.primary_flow_type === 'COMPANY').length,
+  }
 
   return (
     <div>
@@ -31,102 +40,32 @@ export default async function ClientsPage() {
         </Link>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-          <input
-            type="text"
-            placeholder="Search clients..."
-            className="form-input pl-9"
-          />
-        </div>
-        <select className="form-input w-44">
-          <option value="">All Types</option>
-          <option value="INDIVIDUAL_ONLY">Individual</option>
-          <option value="INDIVIDUAL_BUSINESS">Individual + Business</option>
-          <option value="PARTNERSHIP">Partnership</option>
-          <option value="COMPANY">Company / Sdn Bhd</option>
-        </select>
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-4 mb-8 lg:grid-cols-5">
+        <Card size="sm">
+          <p className="text-label text-ink-muted uppercase tracking-wide mb-1">All</p>
+          <p className="text-section font-bold text-ink-primary tabular-nums">{stats.total}</p>
+        </Card>
+        <Card size="sm">
+          <p className="text-label text-ink-muted uppercase tracking-wide mb-1">Individual</p>
+          <p className="text-section font-bold text-ink-primary tabular-nums">{stats.INDIVIDUAL_ONLY}</p>
+        </Card>
+        <Card size="sm">
+          <p className="text-label text-ink-muted uppercase tracking-wide mb-1">Indiv+Biz</p>
+          <p className="text-section font-bold text-ink-primary tabular-nums">{stats.INDIVIDUAL_BUSINESS}</p>
+        </Card>
+        <Card size="sm">
+          <p className="text-label text-ink-muted uppercase tracking-wide mb-1">Partnership</p>
+          <p className="text-section font-bold text-ink-primary tabular-nums">{stats.PARTNERSHIP}</p>
+        </Card>
+        <Card size="sm">
+          <p className="text-label text-ink-muted uppercase tracking-wide mb-1">Company</p>
+          <p className="text-section font-bold text-ink-primary tabular-nums">{stats.COMPANY}</p>
+        </Card>
       </div>
 
-      {/* Clients Table */}
-      <Card className="p-0 overflow-hidden">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th className="py-3 px-6">Client Code</th>
-              <th className="py-3 px-4">Legal Name</th>
-              <th className="py-3 px-4">Type</th>
-              <th className="py-3 px-4">Tax Form</th>
-              <th className="py-3 px-4">Entities</th>
-              <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4">Assigned To</th>
-              <th className="py-3 px-4"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-16 text-ink-muted">
-                  No clients yet. Create your first client to get started.
-                </td>
-              </tr>
-            ) : (
-              clients.map((client) => (
-                <tr key={client.id}>
-                  <td className="py-3 px-6">
-                    <span className="font-mono text-label text-ink-secondary">
-                      {client.client_code}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div>
-                      <p className="font-medium text-ink-primary">{client.legal_name}</p>
-                      {client.display_name && client.display_name !== client.legal_name && (
-                        <p className="text-label text-ink-muted">{client.display_name}</p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant="neutral">
-                      {FLOW_TYPE_LABELS[client.primary_flow_type]}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-label text-ink-secondary font-mono">
-                      {FLOW_TYPE_FORM[client.primary_flow_type]}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-label text-ink-secondary">
-                      {client.entities.length} {client.entities.length === 1 ? 'entity' : 'entities'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={client.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                      {client.status}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-label text-ink-muted">
-                      {client.assigned_owner?.name ?? '—'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Link
-                      href={`/clients/${client.id}`}
-                      className="text-label text-ink-secondary hover:text-ink-primary"
-                    >
-                      View →
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </Card>
+      {/* Interactive Table */}
+      <ClientsTable clients={clients} />
     </div>
   )
 }
